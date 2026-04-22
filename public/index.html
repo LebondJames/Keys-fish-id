@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Fish ID">
+<meta name="theme-color" content="#050e1a">
+<title>Keys Fish ID</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root {
+  --bg:       #050e1a;
+  --deep:     #08152a;
+  --surface:  #0d1f36;
+  --card:     #112540;
+  --border:   rgba(255,255,255,0.07);
+  --accent:   #00d4a0;
+  --blue:     #1a8cff;
+  --warn:     #ff8c42;
+  --danger:   #ff4545;
+  --text:     #e8f0ff;
+  --muted:    rgba(232,240,255,0.42);
+  --safe-bg:  rgba(0,212,160,0.08);
+  --warn-bg:  rgba(255,140,66,0.08);
+  --danger-bg:rgba(255,69,69,0.10);
+}
+
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent;user-select:none}
+
+/* ── LAYOUT ── */
+#app{height:100dvh;display:flex;flex-direction:column;max-width:430px;margin:0 auto;position:relative;overflow:hidden}
+
+/* ── NAV ── */
+.nav{flex-shrink:0;padding:52px 20px 14px;display:flex;align-items:center;justify-content:space-between;background:var(--bg);border-bottom:1px solid var(--border);position:relative;z-index:2}
+.nav::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,160,0.3),transparent)}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:21px;letter-spacing:-0.5px}
+.logo span{color:var(--accent)}
+.tabs{display:flex;gap:3px;background:var(--surface);border-radius:12px;padding:3px}
+.tab{font-size:13px;font-weight:500;padding:7px 16px;border-radius:9px;border:none;background:transparent;color:var(--muted);cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif}
+.tab.active{background:var(--card);color:var(--text)}
+
+/* ── VIEWS ── */
+.view{display:none;flex:1;overflow-y:auto;overflow-x:hidden;flex-direction:column}
+.view.active{display:flex}
+.view::-webkit-scrollbar{display:none}
+
+/* ── MODEL STATUS ── */
+.model-bar{margin:14px 16px 0;padding:10px 14px;border-radius:12px;display:flex;align-items:center;gap:10px;font-size:12px;font-weight:500;transition:all .3s}
+.model-bar.loading{background:rgba(26,140,255,0.08);border:1px solid rgba(26,140,255,0.2);color:var(--blue)}
+.model-bar.ready{background:var(--safe-bg);border:1px solid rgba(0,212,160,0.2);color:var(--accent)}
+.model-bar.error{background:var(--warn-bg);border:1px solid rgba(255,140,66,0.2);color:var(--warn)}
+.model-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.model-bar.loading .model-dot{background:var(--blue);animation:pulse 1.2s infinite}
+.model-bar.ready .model-dot{background:var(--accent)}
+.model-bar.error .model-dot{background:var(--warn)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── CAMERA AREA ── */
+.camera-area{margin:12px 16px 0;border-radius:20px;background:var(--surface);border:1.5px dashed rgba(0,212,160,0.25);min-height:250px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.camera-area:active{transform:scale(.99);opacity:.9}
+.camera-area.has-photo{border-style:solid;border-color:rgba(0,212,160,0.4)}
+.camera-area img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:18px}
+.camera-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(5,14,26,.9) 0%,transparent 55%);border-radius:18px;display:none}
+.camera-area.has-photo .camera-overlay{display:block}
+.camera-placeholder{display:flex;flex-direction:column;align-items:center;gap:12px;z-index:1;padding:20px}
+.camera-area.has-photo .camera-placeholder{display:none}
+.cam-icon{width:60px;height:60px;border-radius:18px;background:rgba(0,212,160,0.1);display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,212,160,0.2)}
+.cam-icon svg{width:28px;height:28px}
+.cam-label{font-size:15px;font-weight:500;color:var(--text)}
+.cam-sub{font-size:12px;color:var(--muted);text-align:center;line-height:1.5}
+.change-btn{position:absolute;bottom:12px;right:14px;z-index:3;font-size:12px;font-weight:500;padding:5px 12px;border-radius:8px;background:rgba(5,14,26,.75);border:1px solid var(--border);color:var(--text);cursor:pointer;display:none}
+.camera-area.has-photo .change-btn{display:block}
+
+#fileInput{display:none}
+
+/* ── ID BUTTON ── */
+.id-btn{margin:12px 16px 0;padding:16px;border-radius:14px;border:none;background:var(--accent);color:#021a10;font-family:'Syne',sans-serif;font-weight:700;font-size:16px;letter-spacing:.2px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 32px)}
+.id-btn:disabled{background:var(--surface);color:var(--muted);cursor:not-allowed}
+.id-btn:not(:disabled):active{transform:scale(.98)}
+
+/* ── LOADING ── */
+.loading-state{display:none;flex-direction:column;align-items:center;gap:14px;padding:32px 20px}
+.loading-state.show{display:flex}
+.spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--muted)}
+
+/* ── RESULT ── */
+.result{margin:12px 16px;border-radius:20px;background:var(--card);border:1px solid var(--border);overflow:hidden;display:none}
+.result.show{display:block}
+
+.result-head{padding:18px 18px 14px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:1px solid var(--border)}
+.result-name{font-family:'Syne',sans-serif;font-size:23px;font-weight:800;color:var(--text);line-height:1.1}
+.result-sci{font-size:12px;color:var(--muted);font-style:italic;margin-top:3px}
+.verdict{flex-shrink:0;padding:7px 13px;border-radius:10px;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+.v-keep{background:var(--safe-bg);color:var(--accent);border:1px solid rgba(0,212,160,0.25)}
+.v-release{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(255,69,69,0.25)}
+.v-caution{background:var(--warn-bg);color:var(--warn);border:1px solid rgba(255,140,66,0.25)}
+
+.result-regs{padding:14px 18px;display:grid;grid-template-columns:1fr 1fr;gap:10px;border-bottom:1px solid var(--border)}
+.reg-item .rl{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.reg-item .rv{font-size:15px;font-weight:500;color:var(--text)}
+.rv.green{color:var(--accent)}.rv.red{color:var(--danger)}.rv.orange{color:var(--warn)}
+
+.result-season{padding:0 18px 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);line-height:1.6}
+
+.result-warning{margin:14px 18px;padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.6;display:none}
+.result-warning.show{display:block}
+.result-warning.danger{background:var(--danger-bg);border:1px solid rgba(255,69,69,0.2);color:#ff8a8a}
+.result-warning.caution{background:var(--warn-bg);border:1px solid rgba(255,140,66,0.2);color:var(--warn)}
+
+.result-conf{padding:0 18px 14px;display:flex;align-items:center;gap:10px}
+.conf-label{font-size:12px;color:var(--muted)}
+.conf-dots{display:flex;gap:4px}
+.cdot{width:8px;height:8px;border-radius:50%;background:var(--border)}
+.cdot.on{background:var(--accent)}.cdot.on.med{background:#f0b429}.cdot.on.low{background:var(--warn)}
+
+.result-id{padding:0 18px 14px}
+.section-label{font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.id-tips{display:flex;flex-direction:column;gap:5px}
+.id-tip{font-size:13px;color:var(--muted);line-height:1.5;display:flex;gap:8px;align-items:flex-start}
+.tip-dot{width:5px;height:5px;border-radius:50%;background:var(--blue);margin-top:7px;flex-shrink:0}
+
+.confused-wrap{padding:0 18px 16px}
+.confused-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.ctag{font-size:12px;padding:4px 10px;border-radius:20px;background:var(--surface);border:1px solid var(--border);color:var(--muted);cursor:pointer}
+.ctag:active{background:var(--card);color:var(--text)}
+
+.offline-note{margin:10px 16px 0;padding:10px 14px;background:var(--safe-bg);border:1px solid rgba(0,212,160,0.2);border-radius:10px;font-size:12px;color:var(--accent);display:none;align-items:center;gap:8px}
+.offline-note.show{display:flex}
+
+/* ── BROWSE ── */
+.browse-header{padding:14px 16px 10px;flex-shrink:0}
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:16px;height:16px;opacity:.35}
+.search-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:11px 14px 11px 36px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none}
+.search-input::placeholder{color:var(--muted)}
+.search-input:focus{border-color:rgba(0,212,160,0.3)}
+
+.filter-row{display:flex;gap:6px;overflow-x:auto;padding:8px 16px 0;flex-shrink:0}
+.filter-row::-webkit-scrollbar{display:none}
+.fchip{flex-shrink:0;font-size:12px;font-weight:500;padding:6px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif}
+.fchip.active{background:var(--accent);color:#021a10;border-color:transparent}
+
+.species-list{padding:10px 16px 80px;display:flex;flex-direction:column;gap:8px}
+.srow{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px 15px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:border-color .15s}
+.srow:active{border-color:rgba(0,212,160,0.3)}
+.srow-left{flex:1;min-width:0}
+.srow-name{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text)}
+.srow-sci{font-size:11px;color:var(--muted);font-style:italic;margin-top:2px}
+.srow-tags{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.mtag{font-size:10px;font-weight:500;padding:2px 7px;border-radius:6px}
+.t-keep{background:rgba(0,212,160,0.08);color:var(--accent)}
+.t-protected{background:var(--danger-bg);color:var(--danger)}
+.t-caution{background:var(--warn-bg);color:var(--warn)}
+.t-neutral{background:var(--surface);color:var(--muted)}
+.srow-arrow{color:var(--muted);flex-shrink:0}
+
+/* ── DETAIL MODAL ── */
+.detail{position:absolute;inset:0;background:var(--bg);z-index:10;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);overflow-y:auto}
+.detail.open{transform:translateX(0)}
+.detail::-webkit-scrollbar{display:none}
+.detail-back{display:flex;align-items:center;gap:8px;padding:52px 16px 14px;cursor:pointer;flex-shrink:0}
+.detail-back svg{width:20px;height:20px}
+.detail-back span{font-size:15px;font-weight:500;color:var(--muted)}
+.detail-body{padding:0 16px 60px}
+.dname{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;color:var(--text);line-height:1.1;margin-bottom:4px}
+.dsci{font-size:14px;color:var(--muted);font-style:italic;margin-bottom:14px}
+.dverdict{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:20px}
+.dsec{margin-bottom:18px}
+.dsec-title{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.dreg-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dreg-box{background:var(--surface);border-radius:12px;padding:12px 14px}
+.dreg-label{font-size:11px;color:var(--muted);margin-bottom:3px}
+.dreg-val{font-size:16px;font-weight:500;color:var(--text)}
+.dreg-val.green{color:var(--accent)}.dreg-val.red{color:var(--danger)}.dreg-val.orange{color:var(--warn)}
+.dseason-box{background:var(--surface);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.6}
+.dwarning{border-radius:12px;padding:14px;font-size:13px;line-height:1.6}
+.dwarning.danger{background:var(--danger-bg);border:1px solid rgba(255,69,69,0.2);color:#ff8a8a}
+.dwarning.caution{background:var(--warn-bg);border:1px solid rgba(255,140,66,0.2);color:var(--warn)}
+.dkeyid{display:flex;flex-direction:column;gap:6px}
+.dkeyid-item{background:var(--surface);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--muted);line-height:1.5;display:flex;gap:10px;align-items:flex-start}
+.dkeyid-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);margin-top:6px;flex-shrink:0}
+.dconfused{display:flex;gap:6px;flex-wrap:wrap}
+.dctag{font-size:12px;padding:5px 12px;background:var(--surface);border:1px solid var(--border);border-radius:20px;color:var(--muted);cursor:pointer}
+.dctag:active{background:var(--card)}
+.ddepth{background:var(--surface);border-radius:12px;padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.6}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div class="nav">
+    <div class="logo">Keys<span>Fish</span></div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('identify',this)">Identify</button>
+      <button class="tab" onclick="switchTab('browse',this)">Species</button>
+    </div>
+  </div>
+
+  <!-- IDENTIFY -->
+  <div class="view active" id="view-identify">
+
+    <div class="model-bar loading" id="modelBar">
+      <div class="model-dot"></div>
+      <span id="modelStatus">Loading AI model...</span>
+    </div>
+
+    <div class="camera-area" id="cameraArea" onclick="triggerUpload()">
+      <div class="camera-placeholder">
+        <div class="cam-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#00d4a0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+        </div>
+        <div class="cam-label">Snap or upload a photo</div>
+        <div class="cam-sub">Works offline once loaded<br>No signal needed at sea</div>
+      </div>
+      <img id="previewImg" style="display:none" alt="">
+      <div class="camera-overlay"></div>
+      <button class="change-btn" onclick="triggerUpload();event.stopPropagation()">Change photo</button>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" capture="environment" onchange="handleFile(this)">
+
+    <button class="id-btn" id="idBtn" disabled onclick="identifyFish()">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      Identify Fish
+    </button>
+
+    <div class="offline-note" id="offlineNote">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6s4-2 11-2 11 2 11 2"/><path d="M5 10s3-1.5 7-1.5S17 10 17 10"/><path d="M9 14s1.5-.5 3-.5 3 .5 3 .5"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+      Offline — using on-device AI model
+    </div>
+
+    <div class="loading-state" id="loadingState">
+      <div class="spinner"></div>
+      <div class="loading-text">Analyzing your catch...</div>
+    </div>
+
+    <div class="result" id="resultCard">
+      <div class="result-head">
+        <div>
+          <div class="result-name" id="rName">—</div>
+          <div class="result-sci" id="rSci"></div>
+        </div>
+        <div class="verdict" id="rVerdict"></div>
+      </div>
+      <div class="result-regs" id="rRegs"></div>
+      <div class="result-season" id="rSeason"></div>
+      <div class="result-warning" id="rWarning"></div>
+      <div class="result-conf" id="rConf"></div>
+      <div class="result-id" id="rId"></div>
+      <div class="confused-wrap" id="rConfused"></div>
+    </div>
+  </div>
+
+  <!-- BROWSE -->
+  <div class="view" id="view-browse">
+    <div class="browse-header">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" id="searchInput" type="search" placeholder="Search species..." oninput="renderList()">
+      </div>
+    </div>
+    <div class="filter-row" id="filterRow"></div>
+    <div class="species-list" id="speciesList"></div>
+  </div>
+
+  <!-- DETAIL MODAL -->
+  <div class="detail" id="detailModal">
+    <div class="detail-back" onclick="closeDetail()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+      <span>Back</span>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+  </div>
+
+</div>
+
+<script src="/species.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.15.0/dist/tf.min.js"></script>
+<script>
+
+// ── CLASS MAP ─────────────────────────────────────────────────────────────────
+// Maps model output index → species folder name → SPECIES data
+const CLASS_NAMES = {
+  0:"almaco_jack",1:"ballyhoo",2:"black_grouper",3:"blackfin_tuna",
+  4:"blue_marlin",5:"bluefin_tuna",6:"bonefish",7:"cero_mackerel",
+  8:"cobia",9:"florida_pompano",10:"gag_grouper",11:"golden_tilefish",
+  12:"goliath_grouper",13:"greater_amberjack",14:"king_mackerel",
+  15:"lane_snapper",16:"lionfish",17:"little_tunny",18:"mahi_mahi",
+  19:"mutton_snapper",20:"nassau_grouper",21:"permit",22:"red_grouper",
+  23:"red_snapper",24:"redfish",25:"sailfish",26:"scamp_grouper",
+  27:"skipjack_tuna",28:"snook",29:"snowy_grouper",30:"spanish_mackerel",
+  31:"swordfish",32:"tarpon",33:"tripletail",34:"vermilion_snapper",
+  35:"wahoo",36:"yellowfin_tuna",37:"yellowtail_snapper"
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let model        = null;
+let modelReady   = false;
+let currentImage = null;
+let activeFilter = 'all';
+
+// ── LOAD MODEL ────────────────────────────────────────────────────────────────
+async function loadModel() {
+  try {
+    setModelBar('loading', 'Loading AI model...');
+    model = await tf.loadLayersModel('/model/model.json');
+    // Warm up with a dummy tensor
+    const dummy = tf.zeros([1, 224, 224, 3]);
+    const warmup = model.predict(dummy);
+    warmup.dispose();
+    dummy.dispose();
+    modelReady = true;
+    setModelBar('ready', 'AI model ready — works offline');
+    if (!navigator.onLine) {
+      document.getElementById('offlineNote').classList.add('show');
+    }
+  } catch(e) {
+    setModelBar('error', 'Model failed to load — check connection');
+    console.error('Model load error:', e);
+  }
+}
+
+function setModelBar(state, msg) {
+  const bar = document.getElementById('modelBar');
+  bar.className = 'model-bar ' + state;
+  document.getElementById('modelStatus').textContent = msg;
+}
+
+// ── TAB SWITCHING ─────────────────────────────────────────────────────────────
+function switchTab(tab, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('view-' + tab).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── UPLOAD ────────────────────────────────────────────────────────────────────
+function triggerUpload() {
+  document.getElementById('fileInput').click();
+}
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('previewImg');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    img.onload = () => { currentImage = img; };
+    document.getElementById('cameraArea').classList.add('has-photo');
+    document.getElementById('idBtn').disabled = false;
+    document.getElementById('resultCard').classList.remove('show');
+    document.getElementById('loadingState').classList.remove('show');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── IDENTIFY ──────────────────────────────────────────────────────────────────
+async function identifyFish() {
+  if (!currentImage || !modelReady) return;
+
+  document.getElementById('loadingState').classList.add('show');
+  document.getElementById('resultCard').classList.remove('show');
+  document.getElementById('idBtn').disabled = true;
+
+  if (!navigator.onLine) {
+    document.getElementById('offlineNote').classList.add('show');
+  }
+
+  try {
+    // Preprocess image for MobileNetV2
+    const tensor = tf.browser.fromPixels(currentImage)
+      .resizeBilinear([224, 224])
+      .toFloat()
+      .div(255.0)
+      .expandDims(0);
+
+    const predictions = model.predict(tensor);
+    const scores      = await predictions.data();
+    tensor.dispose();
+    predictions.dispose();
+
+    // Get top 3 predictions
+    const indexed = Array.from(scores).map((s, i) => ({ score: s, idx: i }));
+    indexed.sort((a, b) => b.score - a.score);
+    const top = indexed.slice(0, 3);
+
+    const topScore   = top[0].score;
+    const topFolder  = CLASS_NAMES[top[0].idx];
+    const species    = SPECIES.find(s => s.id === topFolder);
+
+    const confidence = topScore > 0.7 ? 'high' : topScore > 0.4 ? 'medium' : 'low';
+
+    document.getElementById('loadingState').classList.remove('show');
+    showResult(species, topFolder, confidence, topScore, top);
+
+  } catch(e) {
+    document.getElementById('loadingState').classList.remove('show');
+    showError('Identification failed. Try a clearer photo.');
+    console.error(e);
+  }
+
+  document.getElementById('idBtn').disabled = false;
+}
+
+function showResult(species, folderName, confidence, score, top) {
+  const card = document.getElementById('resultCard');
+  card.classList.add('show');
+
+  const displayName = species
+    ? species.name
+    : folderName.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+
+  document.getElementById('rName').textContent = displayName;
+  document.getElementById('rSci').textContent  = species ? species.scientific : '';
+
+  // Verdict
+  const verdict = document.getElementById('rVerdict');
+  if (species) {
+    if (species.status === 'protected') {
+      verdict.className = 'verdict v-release';
+      verdict.textContent = 'Release';
+    } else if (species.warning) {
+      verdict.className = 'verdict v-caution';
+      verdict.textContent = 'Caution';
+    } else {
+      verdict.className = 'verdict v-keep';
+      verdict.textContent = 'Keep';
+    }
+  } else {
+    verdict.className = 'verdict v-caution';
+    verdict.textContent = 'Verify';
+  }
+
+  // Regs
+  const regs = document.getElementById('rRegs');
+  if (species) {
+    const sizeVal  = species.minSize ? species.minSize + '"' : (species.status === 'protected' ? 'N/A' : 'No min');
+    const bagVal   = species.bagLimit === 0 ? 'ZERO' : (species.bagLimit === null ? 'No limit' : species.bagLimit + ' fish');
+    const sizeC    = species.status === 'protected' ? 'red' : '';
+    const bagC     = species.bagLimit === 0 ? 'red' : species.bagLimit === 1 ? 'orange' : 'green';
+    regs.innerHTML = `
+      <div class="reg-item"><div class="rl">Min size</div><div class="rv ${sizeC}">${sizeVal}</div></div>
+      <div class="reg-item"><div class="rl">Bag limit</div><div class="rv ${bagC}">${bagVal}</div></div>
+    `;
+  } else {
+    regs.innerHTML = `<div class="reg-item" style="grid-column:1/-1"><div class="rl">Regulations</div><div class="rv orange">Not in database — verify with FWC</div></div>`;
+  }
+
+  // Season
+  document.getElementById('rSeason').innerHTML = species
+    ? `<span style="font-size:10px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Season: </span>${species.season}`
+    : '';
+
+  // Warning
+  const warn = document.getElementById('rWarning');
+  if (species && species.warning) {
+    warn.className = 'result-warning show ' + (species.status === 'protected' ? 'danger' : 'caution');
+    warn.textContent = species.warning;
+  } else {
+    warn.className = 'result-warning';
+  }
+
+  // Confidence
+  const conf = document.getElementById('rConf');
+  const dots = [1,2,3].map(i => {
+    const on = (confidence==='high'&&i<=3)||(confidence==='medium'&&i<=2)||(confidence==='low'&&i<=1);
+    return `<div class="cdot ${on ? 'on '+(confidence==='medium'?'med':confidence==='low'?'low':'') : ''}"></div>`;
+  }).join('');
+  const pct = Math.round(score * 100);
+  conf.innerHTML = `<span class="conf-label">Confidence</span><div class="conf-dots">${dots}</div><span class="conf-label">${confidence} (${pct}%)</span>`;
+
+  // Key ID features
+  const rid = document.getElementById('rId');
+  if (species && species.keyID) {
+    rid.innerHTML = `<div class="section-label">Key identifying features</div><div class="id-tips">${species.keyID.map(t=>`<div class="id-tip"><div class="tip-dot"></div><span>${t}</span></div>`).join('')}</div>`;
+  } else { rid.innerHTML = ''; }
+
+  // Confused with
+  const rconf = document.getElementById('rConfused');
+  if (species && species.confusedWith && species.confusedWith.length) {
+    rconf.innerHTML = `<div class="section-label">Often confused with</div><div class="confused-tags">${species.confusedWith.map(n=>`<span class="ctag" onclick="openDetailByName('${n}')">${n}</span>`).join('')}</div>`;
+  } else { rconf.innerHTML = ''; }
+
+  card.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+function showError(msg) {
+  const card = document.getElementById('resultCard');
+  card.classList.add('show');
+  document.getElementById('rName').textContent = 'Could not identify';
+  document.getElementById('rSci').textContent = '';
+  document.getElementById('rVerdict').className = 'verdict v-caution';
+  document.getElementById('rVerdict').textContent = '?';
+  document.getElementById('rRegs').innerHTML = '';
+  document.getElementById('rSeason').textContent = msg;
+  document.getElementById('rWarning').className = 'result-warning';
+  document.getElementById('rConf').innerHTML = '';
+  document.getElementById('rId').innerHTML = '';
+  document.getElementById('rConfused').innerHTML = '';
+}
+
+// ── BROWSE ────────────────────────────────────────────────────────────────────
+const CATS = [
+  {id:'all',label:'All'},
+  {id:'grouper',label:'Grouper'},
+  {id:'snapper',label:'Snapper'},
+  {id:'pelagic',label:'Pelagic'},
+  {id:'jack',label:'Jacks'},
+  {id:'deep',label:'Deep Water'},
+  {id:'inshore',label:'Inshore'},
+  {id:'billfish',label:'Billfish'},
+  {id:'invasive',label:'Invasive'},
+];
+
+function initBrowse() {
+  document.getElementById('filterRow').innerHTML = CATS.map(c =>
+    `<button class="fchip${c.id==='all'?' active':''}" onclick="setFilter('${c.id}',this)">${c.label}</button>`
+  ).join('');
+  renderList();
+}
+
+function setFilter(id, el) {
+  activeFilter = id;
+  document.querySelectorAll('.fchip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderList();
+}
+
+function renderList() {
+  const q = (document.getElementById('searchInput').value||'').toLowerCase();
+  const filtered = SPECIES.filter(s => {
+    const mc = activeFilter === 'all' || s.category === activeFilter;
+    const mq = !q || s.name.toLowerCase().includes(q) || s.scientific.toLowerCase().includes(q);
+    return mc && mq;
+  });
+
+  const el = document.getElementById('speciesList');
+  if (!filtered.length) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);font-size:14px;">No species found</div>`;
+    return;
+  }
+
+  el.innerHTML = filtered.map(s => {
+    const tc = s.status==='protected' ? 't-protected' : s.warning ? 't-caution' : 't-keep';
+    const tt = s.status==='protected' ? 'Protected' : s.warning ? 'Caution' : 'Keep';
+    return `
+      <div class="srow" onclick="openDetail('${s.id}')">
+        <div class="srow-left">
+          <div class="srow-name">${s.name}</div>
+          <div class="srow-sci">${s.scientific}</div>
+          <div class="srow-tags">
+            <span class="mtag ${tc}">${tt}</span>
+            ${s.minSize ? `<span class="mtag t-neutral">Min ${s.minSize}"</span>` : ''}
+            ${s.bagLimit===0 ? `<span class="mtag t-protected">No take</span>` : s.bagLimit===1 ? `<span class="mtag t-caution">Limit 1</span>` : ''}
+          </div>
+        </div>
+        <div class="srow-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg></div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ── DETAIL ────────────────────────────────────────────────────────────────────
+function openDetail(id) {
+  const s = SPECIES.find(sp => sp.id === id);
+  if (!s) return;
+  const vc = s.status==='protected' ? 'var(--danger-bg)' : s.warning ? 'var(--warn-bg)' : 'var(--safe-bg)';
+  const vt = s.status==='protected' ? 'var(--danger)' : s.warning ? 'var(--warn)' : 'var(--accent)';
+  const vl = s.status==='protected' ? '⚑ Do not keep — protected' : s.warning ? '⚠ Caution' : '✓ Legal to keep';
+  const sizeVal = s.minSize ? s.minSize+' inches' : (s.status==='protected' ? 'N/A' : 'No minimum');
+  const bagVal  = s.bagLimit===0 ? 'ZERO — no take' : (s.bagLimit===null ? 'No limit' : s.bagLimit+' per person');
+  const sizeC   = s.status==='protected' ? 'red' : '';
+  const bagC    = s.bagLimit===0 ? 'red' : s.bagLimit===1 ? 'orange' : 'green';
+
+  document.getElementById('detailBody').innerHTML = `
+    <div class="dname">${s.name}</div>
+    <div class="dsci">${s.scientific}</div>
+    <div class="dverdict" style="background:${vc};color:${vt};">${vl}</div>
+    <div class="dsec">
+      <div class="dsec-title">Regulations</div>
+      <div class="dreg-grid">
+        <div class="dreg-box"><div class="dreg-label">Min size</div><div class="dreg-val ${sizeC}">${sizeVal}</div></div>
+        <div class="dreg-box"><div class="dreg-label">Bag limit</div><div class="dreg-val ${bagC}">${bagVal}</div></div>
+      </div>
+      <div style="margin-top:8px;"><div class="dreg-box"><div class="dreg-label">Group / aggregate</div><div style="font-size:13px;color:var(--muted);margin-top:3px;">${s.groupBagLimit}</div></div></div>
+      <div style="margin-top:8px;"><div class="dseason-box"><strong style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Season: </strong>${s.season}</div></div>
+    </div>
+    ${s.warning ? `<div class="dsec"><div class="dsec-title">${s.status==='protected'?'Protection notice':'Important warning'}</div><div class="dwarning ${s.status==='protected'?'danger':'caution'}">${s.warning}</div></div>` : ''}
+    <div class="dsec">
+      <div class="dsec-title">How to identify</div>
+      <div class="dkeyid">${s.keyID.map(t=>`<div class="dkeyid-item"><div class="dkeyid-dot"></div><span>${t}</span></div>`).join('')}</div>
+    </div>
+    ${s.confusedWith&&s.confusedWith.length ? `<div class="dsec"><div class="dsec-title">Often confused with</div><div class="dconfused">${s.confusedWith.map(n=>`<span class="dctag" onclick="openDetailByName('${n}')">${n}</span>`).join('')}</div></div>` : ''}
+    <div class="dsec"><div class="dsec-title">Where to find</div><div class="ddepth">${s.depth}</div></div>
+  `;
+  document.getElementById('detailModal').classList.add('open');
+  document.getElementById('detailModal').scrollTop = 0;
+}
+
+function openDetailByName(name) {
+  const s = SPECIES.find(sp => sp.name.toLowerCase() === name.toLowerCase());
+  if (s) openDetail(s.id);
+}
+
+function closeDetail() {
+  document.getElementById('detailModal').classList.remove('open');
+}
+
+// ── ONLINE/OFFLINE ────────────────────────────────────────────────────────────
+window.addEventListener('offline', () => {
+  document.getElementById('offlineNote').classList.add('show');
+});
+window.addEventListener('online', () => {
+  if (modelReady) document.getElementById('offlineNote').classList.remove('show');
+});
+
+// ── SERVICE WORKER ────────────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+initBrowse();
+loadModel();
+</script>
+</body>
+</html>
